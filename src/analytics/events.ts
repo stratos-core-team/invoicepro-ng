@@ -23,6 +23,14 @@ export const EVENTS = {
   SIGNIN_COMPLETED: 'signin_completed',
   AUTH_FAILED: 'auth_failed',
 
+  // two-factor auth
+  TWO_FA_SETUP_STARTED: 'two_fa_setup_started',
+  TWO_FA_SETUP_COMPLETED: 'two_fa_setup_completed',
+  TWO_FA_VERIFY_PROMPTED: 'two_fa_verify_prompted',
+  TWO_FA_VERIFY_SUCCEEDED: 'two_fa_verify_succeeded',
+  TWO_FA_VERIFY_FAILED: 'two_fa_verify_failed',
+  TWO_FA_CANCELLED: 'two_fa_cancelled',
+
   // app / shell / navigation
   USER_LOGGED_OUT: 'user_logged_out',
   BOTTOM_NAV_CLICKED: 'bottom_nav_clicked',

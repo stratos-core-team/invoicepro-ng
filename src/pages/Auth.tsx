@@ -3,11 +3,24 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { trackEvent, identifyUser } from '@/utils/analytics';
 import { EVENTS } from '@/analytics/events';
+import { generateTwoFactorSecret, verifyTwoFactorToken } from '@/lib/totp';
+import TwoFactorSetup from '@/components/auth/TwoFactorSetup';
+import TwoFactorVerify from '@/components/auth/TwoFactorVerify';
 
 interface AuthProps {
   onAuthSuccess: () => void;
   onBack: () => void;
   initialMode?: 'signin' | 'signup';
+}
+
+interface StoredUser {
+  id: string;
+  fullName: string;
+  businessName: string;
+  email: string;
+  password: string;
+  twoFactorSecret?: string;
+  twoFactorEnabled?: boolean;
 }
 
 export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProps) {
@@ -18,6 +31,12 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
   const [form, setForm] = useState({ fullName: '', businessName: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Two-factor auth flow state
+  const [step, setStep] = useState<'form' | '2fa-setup' | '2fa-verify'>('form');
+  const [pendingUser, setPendingUser] = useState<StoredUser | null>(null);
+  const [isNewSignup, setIsNewSignup] = useState(false);
+  const [twoFactorData, setTwoFactorData] = useState<{ secret: string; otpAuthUrl: string } | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -77,18 +96,20 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
       }
 
       const userId = crypto.randomUUID();
+      const { base32Secret, otpAuthUrl } = generateTwoFactorSecret(form.email);
 
-      // Save user
-      localStorage.setItem(
-        'invoicepro_user',
-        JSON.stringify({
-          id: userId,
-          fullName: form.fullName,
-          businessName: form.businessName,
-          email: form.email,
-          password: form.password,
-        })
-      );
+      const newUser: StoredUser = {
+        id: userId,
+        fullName: form.fullName,
+        businessName: form.businessName,
+        email: form.email,
+        password: form.password,
+        twoFactorSecret: base32Secret,
+        twoFactorEnabled: false,
+      };
+
+      // Save user (2FA is confirmed, not yet enabled, until setup is completed below)
+      localStorage.setItem('invoicepro_user', JSON.stringify(newUser));
 
       // Pre-fill business info
       localStorage.setItem(
@@ -112,18 +133,7 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
         }),
       });
 
-      // Start session
-      localStorage.setItem('invoicepro_session', 'true');
-
-      // Identify user in analytics
-      identifyUser(userId, {
-        email: form.email,
-        full_name: form.fullName,
-        business_name: form.businessName,
-        auth_method: 'local_storage',
-      });
-
-      // Track successful signup
+      // Track successful signup (session/2FA_setup_completed still pending)
       trackEvent(EVENTS.SIGNUP_COMPLETED, {
         user_id: userId,
         email: form.email,
@@ -131,7 +141,15 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
         auth_method: 'local_storage',
       });
 
-      onAuthSuccess();
+      trackEvent(EVENTS.TWO_FA_SETUP_STARTED, {
+        user_id: userId,
+        email: form.email,
+      });
+
+      setPendingUser(newUser);
+      setIsNewSignup(true);
+      setTwoFactorData({ secret: base32Secret, otpAuthUrl });
+      setStep('2fa-setup');
     } else {
       // Sign in
       if (!form.email.trim() || !form.password.trim()) {
@@ -152,7 +170,7 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
         return setError('No account found. Please sign up first.');
       }
 
-      const user = JSON.parse(existing);
+      const user: StoredUser = JSON.parse(existing);
       if (user.email !== form.email || user.password !== form.password) {
         trackEvent(EVENTS.AUTH_FAILED, {
           mode: 'signin',
@@ -162,26 +180,125 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
         return setError('Incorrect email or password.');
       }
 
-      localStorage.setItem('invoicepro_session', 'true');
+      if (user.twoFactorEnabled && user.twoFactorSecret) {
+        trackEvent(EVENTS.TWO_FA_VERIFY_PROMPTED, {
+          user_id: user.id || user.email,
+          email: user.email,
+          context: 'signin',
+        });
 
-      // Identify existing user in analytics
-      identifyUser(user.id || user.email, {
-        email: user.email,
-        full_name: user.fullName,
-        business_name: user.businessName,
-        auth_method: 'local_storage',
-      });
+        setPendingUser(user);
+        setIsNewSignup(false);
+        setStep('2fa-verify');
+        return;
+      }
 
-      // Track successful sign in
-      trackEvent(EVENTS.SIGNIN_COMPLETED, {
-        user_id: user.id || user.email,
-        email: user.email,
-        auth_method: 'local_storage',
-      });
-
-      onAuthSuccess();
+      completeSignIn(user);
     }
   };
+
+  const completeSignIn = (user: StoredUser) => {
+    localStorage.setItem('invoicepro_session', 'true');
+
+    identifyUser(user.id || user.email, {
+      email: user.email,
+      full_name: user.fullName,
+      business_name: user.businessName,
+      auth_method: 'local_storage',
+    });
+
+    trackEvent(EVENTS.SIGNIN_COMPLETED, {
+      user_id: user.id || user.email,
+      email: user.email,
+      auth_method: 'local_storage',
+    });
+
+    onAuthSuccess();
+  };
+
+  const handleTwoFactorSetupContinue = () => {
+    setStep('2fa-verify');
+  };
+
+  const handleTwoFactorVerify = (code: string) => {
+    if (!pendingUser?.twoFactorSecret) return false;
+    const isValid = verifyTwoFactorToken(pendingUser.twoFactorSecret, code);
+
+    trackEvent(isValid ? EVENTS.TWO_FA_VERIFY_SUCCEEDED : EVENTS.TWO_FA_VERIFY_FAILED, {
+      user_id: pendingUser.id || pendingUser.email,
+      email: pendingUser.email,
+      context: isNewSignup ? 'setup' : 'signin',
+    });
+
+    return isValid;
+  };
+
+  const handleTwoFactorVerifySuccess = () => {
+    if (!pendingUser) return;
+
+    if (isNewSignup) {
+      const confirmedUser: StoredUser = { ...pendingUser, twoFactorEnabled: true };
+      localStorage.setItem('invoicepro_user', JSON.stringify(confirmedUser));
+
+      trackEvent(EVENTS.TWO_FA_SETUP_COMPLETED, {
+        user_id: confirmedUser.id,
+        email: confirmedUser.email,
+      });
+
+      completeSignIn(confirmedUser);
+    } else {
+      completeSignIn(pendingUser);
+    }
+
+    setStep('form');
+    setPendingUser(null);
+    setTwoFactorData(null);
+  };
+
+  const handleTwoFactorCancel = () => {
+    trackEvent(EVENTS.TWO_FA_CANCELLED, {
+      user_id: pendingUser?.id,
+      email: pendingUser?.email,
+      context: isNewSignup ? 'setup' : 'signin',
+    });
+
+    if (isNewSignup) {
+      // Discard the unconfirmed account so the user can retry signup cleanly
+      localStorage.removeItem('invoicepro_user');
+    }
+
+    setStep('form');
+    setPendingUser(null);
+    setTwoFactorData(null);
+    setIsNewSignup(false);
+  };
+
+  if (step === '2fa-setup' && twoFactorData) {
+    return (
+      <TwoFactorSetup
+        otpAuthUrl={twoFactorData.otpAuthUrl}
+        secret={twoFactorData.secret}
+        onContinue={handleTwoFactorSetupContinue}
+        onCancel={handleTwoFactorCancel}
+      />
+    );
+  }
+
+  if (step === '2fa-verify') {
+    return (
+      <TwoFactorVerify
+        title={isNewSignup ? 'Confirm your authenticator' : 'Enter verification code'}
+        description={
+          isNewSignup
+            ? 'Enter the 6-digit code from your authenticator app to finish setting up 2FA.'
+            : 'Enter the 6-digit code from your authenticator app to sign in.'
+        }
+        onVerify={handleTwoFactorVerify}
+        onSuccess={handleTwoFactorVerifySuccess}
+        onCancel={handleTwoFactorCancel}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
