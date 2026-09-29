@@ -1,23 +1,20 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { PostHogProvider } from "@posthog/react";
 import App from "./App.tsx";
 import "./index.css";
-import { BrowserRouter } from "react-router-dom";
-import { PostHogProvider } from '@posthog/react'
+import posthog, { initPostHog } from "./analytics/posthog";
 
-const options = {
-  api_host: import.meta.env.VITE_POSTHOG_HOST,
-  defaults: '2026-05-30',
-} as const
-
-
+// Initialize once, outside React, so StrictMode cannot run it twice
+initPostHog();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <PostHogProvider apiKey={import.meta.env.VITE_POSTHOG_PROJECT_TOKEN} options={options}>
-      <App />
-    </PostHogProvider>
+      <PostHogProvider client={posthog}>
+        <App />
+      </PostHogProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

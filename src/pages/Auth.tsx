@@ -89,7 +89,6 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
           trackEvent(EVENTS.AUTH_FAILED, {
             mode: 'signup',
             reason: 'email_already_exists',
-            email: form.email,
           });
           return setError('An account with this email already exists.');
         }
@@ -122,16 +121,20 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
         })
       );
 
-      // Send to Formspree
-      await fetch('https://formspree.io/f/meepdlzy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: form.fullName,
-          businessName: form.businessName,
-          email: form.email,
-        }),
-      });
+      // Send to Formspree (a failure here must not block signup)
+      try {
+        await fetch('https://formspree.io/f/meepdlzy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: form.fullName,
+            businessName: form.businessName,
+            email: form.email,
+          }),
+        });
+      } catch (err) {
+        console.error('Formspree submission failed:', err);
+      }
 
       // Track successful signup (session/2FA_setup_completed still pending)
       trackEvent(EVENTS.SIGNUP_COMPLETED, {
@@ -165,7 +168,6 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
         trackEvent(EVENTS.AUTH_FAILED, {
           mode: 'signin',
           reason: 'no_account_found',
-          email: form.email,
         });
         return setError('No account found. Please sign up first.');
       }
@@ -175,7 +177,6 @@ export default function Auth({ onAuthSuccess, initialMode = 'signin' }: AuthProp
         trackEvent(EVENTS.AUTH_FAILED, {
           mode: 'signin',
           reason: 'invalid_credentials',
-          email: form.email,
         });
         return setError('Incorrect email or password.');
       }

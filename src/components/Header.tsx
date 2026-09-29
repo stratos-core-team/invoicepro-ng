@@ -1,5 +1,6 @@
 import { Settings, Receipt, LogOut, Zap, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { resetUser } from '@/utils/analytics';
 
 interface HeaderProps {
   businessName: string;
@@ -10,6 +11,12 @@ interface HeaderProps {
 }
 
 export function Header({ businessName, onSettings, onLogout, onUpgrade, isPro = false }: HeaderProps) {
+  const handleLogout = () => {
+    // Clear the PostHog identity first, then run the existing logout logic from the parent
+    resetUser();
+    onLogout();
+  };
+
   return (
     <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -23,11 +30,11 @@ export function Header({ businessName, onSettings, onLogout, onUpgrade, isPro = 
           </div>
         </div>
         {!isPro && (
-        <button
-          onClick={onUpgrade}
-          className="hidden md:flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-        >
-          <Zap className="w-3.5 h-3.5" />
+          <button
+            onClick={onUpgrade}
+            className="hidden md:flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <Zap className="w-3.5 h-3.5" />
             Upgrade to Pro
           </button>
         )}
@@ -46,14 +53,14 @@ export function Header({ businessName, onSettings, onLogout, onUpgrade, isPro = 
           <Settings className="w-5 h-5" />
         </Button>
         <Button
-            variant="ghost"
-            size="icon"
-            onClick={onLogout}
-            className="text-gray-600 hover:text-red-500"
-            title="Logout"
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
+          variant="ghost"
+          size="icon"
+          onClick={handleLogout}
+          className="text-gray-600 hover:text-red-500"
+          title="Logout"
+        >
+          <LogOut className="w-5 h-5" />
+        </Button>
       </div>
     </header>
   );
