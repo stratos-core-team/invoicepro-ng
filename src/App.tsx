@@ -50,6 +50,10 @@ function App() {
   const showShell = isLoggedIn && !publicPaths.includes(location.pathname);
   const currentView = (location.pathname.replace('/', '') || 'dashboard') as View;
 
+  // The create page has its own sticky action bar, so the bottom nav is hidden there
+  const isCreateInvoicePage = location.pathname === '/create-invoice';
+  const showBottomNav = showShell && !isCreateInvoicePage;
+
   // Invoices created this month (for the sidebar plan card)
   const now = new Date();
   const invoicesThisMonth = invoices.filter((inv) => {
@@ -164,7 +168,13 @@ function App() {
       )}
 
       {/* lg:pl-60 leaves room for the sidebar on desktop */}
-      <main className={showShell ? "pb-20 lg:pb-0 lg:pl-60" : ""}>
+      <main
+        className={
+          showShell
+            ? `${showBottomNav ? 'pb-20' : ''} lg:pb-0 lg:pl-60`
+            : ""
+        }
+      >
         <Routes>
           {/* Public */}
           <Route
@@ -245,6 +255,7 @@ function App() {
                 <CreateInvoice
                   customers={customers}
                   businessInfo={businessInfo}
+                  invoiceCount={invoices.length}
                   onSave={(inv) => {
                     addInvoice(inv);
                     navigate("/invoices");
@@ -312,7 +323,7 @@ function App() {
         </Routes>
       </main>
 
-      {/* Install Button */}
+      {/* Install Button (sits above the create page's action bar too) */}
       {isInstallable && (
         <div className="fixed bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 z-50">
           <button
@@ -324,8 +335,8 @@ function App() {
         </div>
       )}
 
-      {/* Bottom Nav (mobile/tablet only, hidden on lg+ via its own classes) */}
-      {showShell && (
+      {/* Bottom Nav (mobile/tablet only; hidden on the create page) */}
+      {showBottomNav && (
         <BottomNav
           currentView={currentView}
           onNavigate={handleBottomNavNavigate}

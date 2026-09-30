@@ -15,6 +15,7 @@ export interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  details?: string;
 }
 
 export type InvoiceStatus = 'paid' | 'unpaid' | 'overdue';
@@ -39,6 +40,10 @@ export interface Invoice {
   status: InvoiceStatus;
   createdAt: string;
   paidAt?: string;
+  currency?: string;
+  discount?: number;         // discount amount
+  discountPercent?: number;
+  recurring?: boolean;
 }
 
 export interface BusinessInfo {
