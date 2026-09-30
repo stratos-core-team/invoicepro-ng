@@ -21,7 +21,7 @@ declare global {
 interface CreateInvoiceProps {
   customers: Customer[];
   businessInfo: BusinessInfo;
-  onSave: (invoice: Invoice) => void;
+  onReview: (invoice: Invoice) => void;
   onAddCustomer: (customer: Customer) => void;
   onCancel: () => void;
   /** Optional: when provided, invoice numbers are sequential (INV-2026-001). Otherwise random, as before. */
@@ -189,7 +189,7 @@ function Section({ children, className }: { children: ReactNode; className?: str
 export function CreateInvoice({
   customers,
   businessInfo,
-  onSave,
+  onReview, 
   onAddCustomer,
   onCancel,
   invoiceCount,
@@ -425,8 +425,8 @@ export function CreateInvoice({
     return true;
   };
 
-  const handleSave = () => {
-    if (!selectedCustomer) return;
+    const handleReview = () => {
+    if (!validate() || !selectedCustomer) return;
 
     const validItems: InvoiceItem[] = form.items.filter(isValidItem).map((it) => {
       const quantity = num(it.qty);
@@ -471,50 +471,16 @@ export function CreateInvoice({
       createdAt: new Date().toISOString(),
     };
 
-    try {
-      onSave(invoice);
+    // Keep the form so "back" from the preview page restores everything
+    saveDraftNow(true);
 
-      // PostHog event
-      trackEvent(EVENTS.INVOICE_CREATED, {
-        invoice_id: invoice.id,
-        invoice_number: invoice.invoiceNumber,
-        customer_id: invoice.customerId,
-        items_count: invoice.items.length,
-        amount: invoice.total,
-        currency: form.currency,
-        status: invoice.status,
-        payment_terms: invoice.paymentTerms,
-        discount_percent: discountPct,
-        tax_rate: taxRate,
-        recurring: form.recurring,
-      });
+    trackEvent('invoice_review_opened', {
+      total: invoice.total,
+      items_count: invoice.items.length,
+    });
 
-      // Keep GA event too
-      if (window.gtag) {
-        window.gtag('event', 'invoice_created', {
-          value: invoice.total,
-          currency: form.currency,
-        });
-      }
-
-      try {
-        localStorage.removeItem(DRAFT_KEY);
-      } catch {
-        /* ignore */
-      }
-
-      toast.success('Invoice created successfully!');
-      onCancel();
-    } catch (error) {
-      trackEvent(EVENTS.INVOICE_CREATION_FAILED, {
-        reason: 'save_error',
-        message: error instanceof Error ? error.message : 'unknown_error',
-      });
-
-      toast.error('Failed to create invoice');
-    }
+    onReview(invoice);
   };
-
   const openSheet = (mode: 'preview' | 'review') => {
     if (!validate()) return;
     trackEvent(mode === 'preview' ? 'invoice_preview_opened' : 'invoice_review_opened', {
@@ -868,7 +834,7 @@ export function CreateInvoice({
             Preview
           </button>
           <button
-            onClick={() => openSheet('review')}
+            onClick={handleReview}
             className="h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-sm font-semibold text-white transition-colors"
           >
             Review &amp; send
@@ -960,15 +926,12 @@ export function CreateInvoice({
                 >
                   Back to edit
                 </button>
-                <button
-                  onClick={() => {
-                    setSheetMode(null);
-                    handleSave();
-                  }}
-                  className="h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-sm font-semibold text-white transition-colors"
-                >
-                  Confirm &amp; save
-                </button>
+                            <button
+              onClick={() => setSheetMode(null)}
+              className="w-full h-11 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-semibold text-gray-800 transition-colors"
+            >
+              Close preview
+            </button>
               </div>
             ) : (
               <button

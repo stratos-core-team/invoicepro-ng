@@ -14,6 +14,7 @@ import Upgrade from '@/pages/Upgrade';
 import { Dashboard } from "@/sections/Dashboard";
 import { InvoiceList } from "@/sections/InvoiceList";
 import { CreateInvoice } from "@/sections/CreateInvoice";
+import { PreviewSend } from "@/sections/PreviewSend";
 import { CustomerList } from "@/sections/CustomerList";
 import { Settings } from "@/sections/Settings";
 
@@ -25,6 +26,8 @@ import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { trackEvent } from '@/utils/analytics';
 import { EVENTS } from '@/analytics/events';
 
+const DRAFT_KEY = 'invoicepro_invoice_draft';
+
 function App() {
   usePageTracking();
 
@@ -33,6 +36,9 @@ function App() {
 
   const publicPaths = ["/", "/auth", "/about", "/contact", "/feedback"];
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('all');
+
+  // Invoice waiting on the Preview & send page (not saved until it is sent)
+  const [pendingInvoice, setPendingInvoice] = useState<Invoice | null>(null);
 
   const [invoices, setInvoices] = useLocalStorage<Invoice[]>("invoicepro_invoices", []);
   const [customers, setCustomers] = useLocalStorage<Customer[]>("invoicepro_customers", []);
@@ -50,9 +56,9 @@ function App() {
   const showShell = isLoggedIn && !publicPaths.includes(location.pathname);
   const currentView = (location.pathname.replace('/', '') || 'dashboard') as View;
 
-  // The create page has its own sticky action bar, so the bottom nav is hidden there
-  const isCreateInvoicePage = location.pathname === '/create-invoice';
-  const showBottomNav = showShell && !isCreateInvoicePage;
+  // These pages have their own sticky action bar, so the bottom nav is hidden there
+  const hasOwnActionBar = ['/create-invoice', '/preview-send'].includes(location.pathname);
+  const showBottomNav = showShell && !hasOwnActionBar;
 
   // Invoices created this month (for the sidebar plan card)
   const now = new Date();
@@ -67,6 +73,21 @@ function App() {
   // ================= ACTIONS =================
   const addInvoice = (invoice: Invoice) => {
     setInvoices((prev) => [invoice, ...prev]);
+  };
+
+  const handleSendInvoice = (invoice: Invoice) => {
+    // Guard against saving the same invoice twice (e.g. browser back, then send again)
+    if (!invoices.some((inv) => inv.id === invoice.id)) {
+      addInvoice(invoice);
+    }
+
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* ignore */
+    }
+
+    navigate('/invoices');
   };
 
   const deleteInvoice = (id: string) => {
@@ -256,13 +277,34 @@ function App() {
                   customers={customers}
                   businessInfo={businessInfo}
                   invoiceCount={invoices.length}
-                  onSave={(inv) => {
-                    addInvoice(inv);
-                    navigate("/invoices");
+                  onReview={(inv) => {
+                    setPendingInvoice(inv);
+                    navigate('/preview-send');
                   }}
                   onAddCustomer={addCustomer}
                   onCancel={() => navigate("/invoices")}
                 />
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+
+          <Route
+            path="/preview-send"
+            element={
+              isLoggedIn ? (
+                pendingInvoice ? (
+                  <PreviewSend
+                    invoice={pendingInvoice}
+                    businessInfo={businessInfo}
+                    onBack={() => navigate('/create-invoice')}
+                    onSend={handleSendInvoice}
+                  />
+                ) : (
+                  // Nothing to preview (e.g. page was refreshed): go back to the form, which restores its draft
+                  <Navigate to="/create-invoice" replace />
+                )
               ) : (
                 <Navigate to="/" />
               )
@@ -323,7 +365,7 @@ function App() {
         </Routes>
       </main>
 
-      {/* Install Button (sits above the create page's action bar too) */}
+      {/* Install Button */}
       {isInstallable && (
         <div className="fixed bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 z-50">
           <button
@@ -335,7 +377,7 @@ function App() {
         </div>
       )}
 
-      {/* Bottom Nav (mobile/tablet only; hidden on the create page) */}
+      {/* Bottom Nav (mobile/tablet only; hidden on pages with their own action bar) */}
       {showBottomNav && (
         <BottomNav
           currentView={currentView}
