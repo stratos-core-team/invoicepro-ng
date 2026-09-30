@@ -46,6 +46,20 @@ function App() {
   const isLoggedIn = !!localStorage.getItem("invoicepro_session");
   const { isInstallable, installApp } = usePWAInstall();
 
+  // Show the app shell (header + sidebar + bottom nav) only on private pages
+  const showShell = isLoggedIn && !publicPaths.includes(location.pathname);
+  const currentView = (location.pathname.replace('/', '') || 'dashboard') as View;
+
+  // Invoices created this month (for the sidebar plan card)
+  const now = new Date();
+  const invoicesThisMonth = invoices.filter((inv) => {
+    const d = new Date(inv.issueDate);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+
+  // Only pass a name to the greeting once the user has set a real business name
+  const displayName = businessInfo.name !== "My Business" ? businessInfo.name : undefined;
+
   // ================= ACTIONS =================
   const addInvoice = (invoice: Invoice) => {
     setInvoices((prev) => [invoice, ...prev]);
@@ -99,6 +113,15 @@ function App() {
     navigate(`/${view}`);
   };
 
+  const handleSidebarNavigate = (view: View) => {
+    trackEvent('sidebar_nav_clicked', {
+      from: location.pathname.replace('/', '') || 'dashboard',
+      to: view,
+    });
+
+    navigate(`/${view}`);
+  };
+
   const handleInstallApp = () => {
     trackEvent(EVENTS.PWA_INSTALL_CLICKED, {
       current_path: location.pathname,
@@ -110,8 +133,8 @@ function App() {
   // ================= UI =================
   return (
     <div className="min-h-screen bg-gray-50 relative">
-      {/* Header */}
-      {isLoggedIn && !publicPaths.includes(location.pathname) && (
+      {/* Header + desktop sidebar */}
+      {showShell && (
         <Header
           businessName={businessInfo.name}
           onSettings={() => {
@@ -127,10 +150,21 @@ function App() {
             });
             navigate('/upgrade');
           }}
+          currentView={currentView}
+          onNavigate={handleSidebarNavigate}
+          userName={displayName}
+          userEmail={businessInfo.email || undefined}
+          invoiceCount={invoices.length}
+          invoicesUsed={invoicesThisMonth}
+          onSearch={(query) => {
+            trackEvent('header_search_submitted', { query_length: query.length });
+            navigate('/invoices');
+          }}
         />
       )}
 
-      <main className="pb-20 md:pb-0">
+      {/* lg:pl-60 leaves room for the sidebar on desktop */}
+      <main className={showShell ? "pb-20 lg:pb-0 lg:pl-60" : ""}>
         <Routes>
           {/* Public */}
           <Route
@@ -171,6 +205,7 @@ function App() {
               isLoggedIn ? (
                 <Dashboard
                   invoices={invoices}
+                  userName={displayName}
                   onCreateInvoice={() => navigate('/create-invoice')}
                   onViewInvoices={() => navigate('/invoices')}
                   onViewCustomers={() => navigate('/customers')}
@@ -279,7 +314,7 @@ function App() {
 
       {/* Install Button */}
       {isInstallable && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
+        <div className="fixed bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 z-50">
           <button
             onClick={handleInstallApp}
             className="px-4 py-2 bg-green-600 text-white rounded-md shadow-md hover:bg-green-700 transition font-bold text-sm"
@@ -289,10 +324,10 @@ function App() {
         </div>
       )}
 
-      {/* Bottom Nav */}
-      {isLoggedIn && !publicPaths.includes(location.pathname) && (
+      {/* Bottom Nav (mobile/tablet only, hidden on lg+ via its own classes) */}
+      {showShell && (
         <BottomNav
-          currentView={(location.pathname.replace('/', '') as View) || 'dashboard'}
+          currentView={currentView}
           onNavigate={handleBottomNavNavigate}
         />
       )}

@@ -11,9 +11,9 @@ interface BottomNavProps {
 }
 
 const navItems = [
-  { view: 'dashboard' as View, label: 'Home', icon: Home },
+  { view: 'dashboard' as View, label: 'Overview', icon: Home },
   { view: 'invoices' as View, label: 'Invoices', icon: FileText },
-  { view: 'customers' as View, label: 'Customers', icon: Users },
+  { view: 'customers' as View, label: 'Clients', icon: Users },
 ];
 
 export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
@@ -42,7 +42,8 @@ export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
   return (
     <nav
       className={cn(
-        'fixed bottom-0 left-0 right-0 bg-white border-t z-50 transition-transform duration-300 ease-in-out',
+        // Mobile/tablet only: desktop uses the sidebar
+        'lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-50 transition-transform duration-300 ease-in-out',
         visible ? 'translate-y-0' : 'translate-y-full'
       )}
     >
