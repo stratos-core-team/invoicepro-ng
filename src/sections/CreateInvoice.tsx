@@ -117,7 +117,9 @@ const buildDefaults = (businessInfo: BusinessInfo, invoiceCount?: number): FormS
     taxRate: '7.5',
     discount: '',
     paymentTerm: '14',
-    notes: `Thank you for choosing ${businessInfo.name}. Please include the invoice number with payment.`,
+    notes:
+  businessInfo.defaultNotes?.trim() ||
+  `Thank you for choosing ${businessInfo.name}. Please include the invoice number with payment.`,
     recurring: false,
   };
 };

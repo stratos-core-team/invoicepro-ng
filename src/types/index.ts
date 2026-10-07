@@ -51,9 +51,14 @@ export interface BusinessInfo {
   address: string;
   phone: string;
   email: string;
-  logo?: string;
+  taxId?: string;
+  logo?: string;                    // data URL
+  brandColor?: string;              // hex, e.g. '#10b981'
+  footerMessage?: string;
+  defaultNotes?: string;
+  showTaxId?: boolean;
+  showPaymentInstructions?: boolean;
 }
-
 
 export type View = 'landing' | 'auth' | 'dashboard' | 'invoices' | 'create-invoice' | 'customers' | 'settings' | 'upgrade';
 

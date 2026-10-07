@@ -112,8 +112,12 @@ export function Sidebar({
           onClick={() => onNavigate('customers')}
         />
         <NavItem icon={CreditCard} label="Payments" title="Coming soon" />
-        <NavItem icon={BarChart3} label="Reports" title="Coming soon" />
-
+        <NavItem
+          icon={BarChart3}
+          label="Reports"
+          active={currentView === ('export-report' as View)}
+          onClick={() => onNavigate('export-report' as View)}
+        />
         <p className="px-3 pt-6 pb-2 text-[10px] font-semibold tracking-widest text-slate-500">
           WORKSPACE
         </p>

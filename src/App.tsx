@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-
 import type { Invoice, Customer, BusinessInfo, View } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useState } from "react";
+import { toast } from "sonner";
 import { usePageTracking } from '@/hooks/usePageTracking';
 
 import Home from "@/pages/Home";
@@ -17,8 +18,12 @@ import { CreateInvoice } from "@/sections/CreateInvoice";
 import { PreviewSend } from "@/sections/PreviewSend";
 import { CustomerList } from "@/sections/CustomerList";
 import { Settings } from "@/sections/Settings";
+import { More } from "@/sections/More";
+import { BusinessBranding } from "@/sections/BusinessBranding";
+import { ExportReport } from "@/sections/ExportReport";
 
 import { BottomNav } from "@/components/BottomNav";
+import type { NavView } from "@/components/BottomNav";
 import { Header } from "@/components/Header";
 import { Toaster } from "@/components/ui/sonner";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
@@ -57,10 +62,10 @@ function App() {
   const currentView = (location.pathname.replace('/', '') || 'dashboard') as View;
 
   // These pages have their own sticky action bar, so the bottom nav is hidden there
-  const hasOwnActionBar = ['/create-invoice', '/preview-send'].includes(location.pathname);
+  const hasOwnActionBar = ['/create-invoice', '/preview-send', '/business', '/export-report'].includes(location.pathname);
   const showBottomNav = showShell && !hasOwnActionBar;
 
-  // Invoices created this month (for the sidebar plan card)
+  // Invoices created this month (for the sidebar plan card and the More page)
   const now = new Date();
   const invoicesThisMonth = invoices.filter((inv) => {
     const d = new Date(inv.issueDate);
@@ -129,11 +134,24 @@ function App() {
     navigate("/");
   };
 
-  const handleBottomNavNavigate = (view: View) => {
+  const goToUpgrade = () => {
+    trackEvent(EVENTS.UPGRADE_OPENED, {
+      from: location.pathname,
+    });
+    navigate('/upgrade');
+  };
+
+  const handleBottomNavNavigate = (view: NavView) => {
     trackEvent(EVENTS.BOTTOM_NAV_CLICKED, {
       from: location.pathname.replace('/', '') || 'dashboard',
       to: view,
     });
+
+    // Payments has no page yet
+    if (view === 'payments') {
+      toast.info('Payments is coming soon');
+      return;
+    }
 
     navigate(`/${view}`);
   };
@@ -169,12 +187,7 @@ function App() {
             navigate("/settings");
           }}
           onLogout={handleLogout}
-          onUpgrade={() => {
-            trackEvent(EVENTS.UPGRADE_OPENED, {
-              from: location.pathname,
-            });
-            navigate('/upgrade');
-          }}
+          onUpgrade={goToUpgrade}
           currentView={currentView}
           onNavigate={handleSidebarNavigate}
           userName={displayName}
@@ -244,6 +257,7 @@ function App() {
                     setInvoiceStatusFilter(status);
                     navigate('/invoices');
                   }}
+                  onExportReport={() => navigate('/export-report')}
                 />
               ) : (
                 <Navigate to="/" />
@@ -329,6 +343,26 @@ function App() {
           />
 
           <Route
+            path="/more"
+            element={
+              isLoggedIn ? (
+                <More
+                  businessInfo={businessInfo}
+                  invoicesUsed={invoicesThisMonth}
+                  onSettings={() => navigate('/settings')}
+                  onUpgrade={goToUpgrade}
+                  onHelp={() => navigate('/contact')}
+                  onFeedback={() => navigate('/feedback')}
+                  onLogout={handleLogout}
+                  onBusiness={() => navigate('/business')}
+                />
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+
+          <Route
             path="/settings"
             element={
               isLoggedIn ? (
@@ -341,6 +375,37 @@ function App() {
               )
             }
           />
+
+            <Route
+              path="/business"
+              element={
+                isLoggedIn ? (
+                  <BusinessBranding
+                    businessInfo={businessInfo}
+                    onUpdate={setBusinessInfo}
+                    onBack={() => navigate('/more')}
+                  />
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+
+          <Route
+            path="/export-report"
+            element={
+            isLoggedIn ? (
+              <ExportReport
+                invoices={invoices}
+                customers={customers}
+                businessInfo={businessInfo}
+                onBack={() => navigate('/dashboard')}
+              />
+            ) : (
+            <Navigate to="/" />
+            )
+          }
+        />
 
           <Route
             path="/upgrade"

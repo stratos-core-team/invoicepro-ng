@@ -5,6 +5,7 @@ import type { Invoice, BusinessInfo } from '@/types';
 import { cn } from '@/lib/utils';
 import { trackEvent } from '@/utils/analytics';
 import { EVENTS } from '@/analytics/events';
+import { getBrand } from '@/sections/BusinessBranding';
 
 export interface SendOptions {
   recipient: string;
@@ -102,11 +103,15 @@ export function PreviewSend({ invoice, businessInfo, onBack, onSend }: PreviewSe
       .slice(0, 2)
       .toUpperCase() || 'IP';
 
+  // Branding from the Business & branding page
+  const brand = getBrand(businessInfo.brandColor);
+  const taxId = businessInfo.taxId?.trim() ?? '';
+  const showTaxId = businessInfo.showTaxId !== false && taxId.length > 0;
+  const footerNote = businessInfo.footerMessage?.trim() || 'Thank you for your business.';
+  const invoiceNotes = invoice.notes?.trim() ?? '';
+
   const businessLine = [businessInfo.address, businessInfo.email].filter(Boolean).join(' · ');
   const billToLine = [invoice.customerAddress, invoice.customerEmail].filter(Boolean).join(' · ');
-  const footerNote =
-    invoice.notes?.trim() ||
-    `Thank you for your business. Payment terms: ${invoice.paymentTerms}.`;
 
   /* ---------- Actions ---------- */
 
@@ -157,13 +162,17 @@ export function PreviewSend({ invoice, businessInfo, onBack, onSend }: PreviewSe
       )
       .join('');
 
+    const logoHtml = businessInfo.logo
+      ? `<img src="${escapeHtml(businessInfo.logo)}" alt="" style="width:56px;height:56px;object-fit:contain" />`
+      : `<div style="width:48px;height:48px;border-radius:10px;background:${brand.value};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center">${escapeHtml(businessInitials)}</div>`;
+
     w.document.write(`<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(invoice.invoiceNumber)}</title>
   <style>
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { font-family: Arial, Helvetica, sans-serif; color: #111827; margin: 40px; }
     .top { display: flex; justify-content: space-between; align-items: flex-start; }
     h1 { font-size: 32px; margin: 32px 0 4px; }
@@ -176,8 +185,9 @@ export function PreviewSend({ invoice, businessInfo, onBack, onSend }: PreviewSe
     .sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
     .totals { margin-top: 16px; margin-left: auto; width: 260px; font-size: 14px; }
     .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
-    .due { background: #ecfdf5; color: #065f46; font-weight: bold; font-size: 18px; padding: 12px; border-radius: 8px; margin-top: 8px; }
-    .note { margin-top: 32px; font-size: 12px; color: #6b7280; text-align: center; }
+    .due { background: ${brand.value}1a; color: ${brand.text}; font-weight: bold; font-size: 18px; padding: 12px; border-radius: 8px; margin-top: 8px; }
+    .notes { margin-top: 28px; font-size: 12px; color: #4b5563; background: #f9fafb; padding: 12px; border-radius: 8px; }
+    .note { margin-top: 28px; font-size: 12px; color: #6b7280; text-align: center; }
     @media print { body { margin: 20px; } }
   </style>
 </head>
@@ -186,15 +196,19 @@ export function PreviewSend({ invoice, businessInfo, onBack, onSend }: PreviewSe
     <div>
       <strong style="font-size:18px">${escapeHtml(businessInfo.name)}</strong>
       <div class="muted">${escapeHtml(businessLine)}</div>
+      ${showTaxId ? `<div class="muted">Tax ID: ${escapeHtml(taxId)}</div>` : ''}
     </div>
+    ${logoHtml}
+  </div>
+
+  <h1>INVOICE</h1>
+  <div class="top">
+    <div class="muted">${escapeHtml(invoice.invoiceNumber)}</div>
     <div class="muted right">
       Issued ${formatDate(invoice.issueDate)}<br />
       Due ${formatDate(invoice.dueDate)}
     </div>
   </div>
-
-  <h1>INVOICE</h1>
-  <div class="muted">${escapeHtml(invoice.invoiceNumber)}</div>
 
   <div class="label">BILL TO</div>
   <strong>${escapeHtml(invoice.customerName)}</strong>
@@ -212,6 +226,7 @@ export function PreviewSend({ invoice, businessInfo, onBack, onSend }: PreviewSe
     <div class="due"><span>Total due</span><span>${money(invoice.total)}</span></div>
   </div>
 
+  ${invoiceNotes ? `<div class="notes">${escapeHtml(invoiceNotes)}</div>` : ''}
   <div class="note">${escapeHtml(footerNote)}</div>
 </body>
 </html>`);
@@ -331,10 +346,23 @@ export function PreviewSend({ invoice, businessInfo, onBack, onSend }: PreviewSe
             <div className="min-w-0">
               <h3 className="text-lg font-bold text-gray-900 truncate">{businessInfo.name}</h3>
               {businessLine && <p className="text-xs text-gray-500 mt-0.5">{businessLine}</p>}
+              {showTaxId && <p className="text-xs text-gray-500">Tax ID: {taxId}</p>}
             </div>
-            <div className="w-11 h-11 shrink-0 rounded-xl bg-emerald-600 text-white font-bold text-sm flex items-center justify-center">
-              {businessInitials}
-            </div>
+
+            {businessInfo.logo ? (
+              <img
+                src={businessInfo.logo}
+                alt={`${businessInfo.name} logo`}
+                className="w-11 h-11 shrink-0 rounded-xl object-contain"
+              />
+            ) : (
+              <div
+                className="w-11 h-11 shrink-0 rounded-xl text-white font-bold text-sm flex items-center justify-center"
+                style={{ backgroundColor: brand.value }}
+              >
+                {businessInitials}
+              </div>
+            )}
           </div>
 
           <div className="mt-6 flex items-end justify-between gap-3">
@@ -392,10 +420,21 @@ export function PreviewSend({ invoice, businessInfo, onBack, onSend }: PreviewSe
             </div>
           </dl>
 
-          <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3">
-            <span className="text-sm font-bold text-emerald-800">Total due</span>
-            <span className="text-2xl font-bold text-emerald-700">{money(invoice.total)}</span>
+          <div
+            className="mt-3 flex items-center justify-between rounded-xl px-4 py-3"
+            style={{ backgroundColor: `${brand.value}1A` }}
+          >
+            <span className="text-sm font-bold" style={{ color: brand.text }}>
+              Total due
+            </span>
+            <span className="text-2xl font-bold" style={{ color: brand.text }}>
+              {money(invoice.total)}
+            </span>
           </div>
+
+          {invoiceNotes && (
+            <p className="mt-4 text-xs text-gray-500 bg-slate-50 rounded-lg p-3">{invoiceNotes}</p>
+          )}
 
           <p className="mt-5 text-center text-[11px] text-gray-400">{footerNote}</p>
         </section>

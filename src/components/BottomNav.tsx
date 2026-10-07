@@ -1,20 +1,27 @@
-import { Home, FileText, Users, PlusCircle } from 'lucide-react';
+import { Home, FileText, Users, CreditCard, MoreHorizontal } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import type { View } from '@/types';
 import { cn } from '@/lib/utils';
-import { trackEvent } from '@/utils/analytics';
-import { EVENTS } from '@/analytics/events';
+
+/** Bottom nav destinations: your existing views plus the two new tabs */
+export type NavView = View | 'payments' | 'more';
 
 interface BottomNavProps {
-  currentView: View;
-  onNavigate: (view: View) => void;
+  currentView: string;
+  onNavigate: (view: NavView) => void;
 }
 
-const navItems = [
-  { view: 'dashboard' as View, label: 'Overview', icon: Home },
+const navItems: { view: NavView; label: string; icon: LucideIcon }[] = [
+  { view: 'dashboard' as View, label: 'Home', icon: Home },
   { view: 'invoices' as View, label: 'Invoices', icon: FileText },
   { view: 'customers' as View, label: 'Clients', icon: Users },
+  { view: 'payments', label: 'Payments', icon: CreditCard },
+  { view: 'more', label: 'More', icon: MoreHorizontal },
 ];
+
+// Pages that belong under the More tab
+const MORE_PAGES = ['more', 'settings', 'upgrade', 'contact', 'feedback'];
 
 export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
   const [visible, setVisible] = useState(true);
@@ -39,6 +46,9 @@ export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const isActive = (view: NavView) =>
+    view === 'more' ? MORE_PAGES.includes(currentView) : currentView === view;
+
   return (
     <nav
       className={cn(
@@ -50,38 +60,24 @@ export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = currentView === item.view;
+          const active = isActive(item.view);
+
           return (
             <button
               key={item.view}
               onClick={() => onNavigate(item.view)}
               className={cn(
                 'flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors',
-                isActive ? 'text-emerald-600' : 'text-gray-500 hover:text-gray-700'
+                active ? 'text-emerald-600' : 'text-gray-500 hover:text-gray-700'
               )}
             >
-              <Icon className={cn('w-5 h-5', isActive && 'fill-current')} />
-              <span className="text-xs font-medium">{item.label}</span>
+              <Icon className={cn('w-5 h-5', active && 'stroke-[2.5]')} />
+              <span className={cn('text-[11px]', active ? 'font-bold' : 'font-medium')}>
+                {item.label}
+              </span>
             </button>
           );
         })}
-
-        <button
-          onClick={() => {
-            trackEvent(EVENTS.CREATE_INVOICE_CLICKED, {
-              source: 'bottom_nav',
-              from_view: currentView,
-            });
-
-            onNavigate('create-invoice');
-          }}
-          className="flex flex-col items-center justify-center gap-1 flex-1 h-full text-emerald-600"
-        >
-          <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center -mt-4 shadow-lg">
-            <PlusCircle className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-xs font-medium">New</span>
-        </button>
       </div>
     </nav>
   );
