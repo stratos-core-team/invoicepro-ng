@@ -14,6 +14,7 @@ import {
   HelpCircle,
   MessageCircle,
   ChevronRight,
+  BarChart3
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -34,6 +35,7 @@ interface MoreProps {
   onFeedback: () => void;
   onLogout: () => void;
   onBusiness: () => void;
+  onReports: () => void;
 }
 
 interface RowProps {
@@ -101,7 +103,8 @@ export function More({
   onHelp,
   onFeedback,
   onLogout,
-  onBusiness
+  onBusiness,
+  onReports
 }: MoreProps) {
   const initials =
     businessInfo.name
@@ -189,6 +192,12 @@ export function More({
         <div>
           <SectionLabel>Business</SectionLabel>
           <Card>
+            <Row
+              icon={BarChart3}
+              label="Reports"
+              value="Performance"
+              onClick={open('reports', 'Reports', onReports)}
+            />
             <Row
               icon={Building2}
               label="Business profile"

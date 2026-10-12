@@ -28,6 +28,7 @@ interface DashboardProps {
   onViewCustomers: () => void;
   onViewInvoicesByStatus?: (status: string) => void;
   onExportReport?: () => void;
+  onViewReports?: () => void;
   userName?: string;
 }
 
@@ -38,6 +39,7 @@ export function Dashboard({
   onViewCustomers: _onViewCustomers,
   onViewInvoicesByStatus,
   onExportReport,
+  onViewReports,
   userName,
 }: DashboardProps) {
   useEffect(() => {
@@ -240,6 +242,11 @@ export function Dashboard({
     onExportReport?.();
   };
 
+  const handleViewReports = () => {
+    trackEvent('dashboard_view_report_clicked', { from_view: 'dashboard' });
+    onViewReports?.();
+  };
+
   /* ---------- Payment status bar ---------- */
 
   const statusTotal = stats.totalRevenue + stats.unpaidAmount + stats.overdueAmount;
@@ -421,7 +428,7 @@ export function Dashboard({
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-gray-900">Payment status</h3>
               <button
-                onClick={() => handleViewInvoices('dashboard_payment_status_view_report')}
+                onClick={handleViewReports}
                 className="text-xs font-medium text-emerald-600 hover:text-emerald-700"
               >
                 View report

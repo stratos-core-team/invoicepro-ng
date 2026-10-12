@@ -1,9 +1,10 @@
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import type { Invoice, Customer, BusinessInfo, View } from "@/types";
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
+import type { Invoice, Customer, BusinessInfo, CatalogItem, View } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useState } from "react";
 import { toast } from "sonner";
 import { usePageTracking } from '@/hooks/usePageTracking';
+import { ItemEditor } from "@/sections/ItemEditor";
 
 import Home from "@/pages/Home";
 import Auth from "@/pages/Auth";
@@ -21,6 +22,7 @@ import { Settings } from "@/sections/Settings";
 import { More } from "@/sections/More";
 import { BusinessBranding } from "@/sections/BusinessBranding";
 import { ExportReport } from "@/sections/ExportReport";
+import { Reports } from "@/sections/Reports";
 
 import { BottomNav } from "@/components/BottomNav";
 import type { NavView } from "@/components/BottomNav";
@@ -32,6 +34,23 @@ import { trackEvent } from '@/utils/analytics';
 import { EVENTS } from '@/analytics/events';
 
 const DRAFT_KEY = 'invoicepro_invoice_draft';
+function EditItemRoute({
+  items,
+  onSave,
+  onCancel,
+}: {
+  items: CatalogItem[];
+  onSave: (item: CatalogItem) => void;
+  onCancel: () => void;
+}) {
+  const { id } = useParams();
+  const item = items.find((i) => i.id === id);
+
+  // Unknown or deleted item: nothing to edit
+  if (!item) return <Navigate to="/more" replace />;
+
+  return <ItemEditor key={item.id} item={item} items={items} onSave={onSave} onCancel={onCancel} />;
+}
 
 function App() {
   usePageTracking();
@@ -53,6 +72,7 @@ function App() {
     phone: "",
     email: "",
   });
+  const [catalog, setCatalog] = useLocalStorage<CatalogItem[]>("invoicepro_catalog", []);
 
   const isLoggedIn = !!localStorage.getItem("invoicepro_session");
   const { isInstallable, installApp } = usePWAInstall();
@@ -62,7 +82,9 @@ function App() {
   const currentView = (location.pathname.replace('/', '') || 'dashboard') as View;
 
   // These pages have their own sticky action bar, so the bottom nav is hidden there
-  const hasOwnActionBar = ['/create-invoice', '/preview-send', '/business', '/export-report'].includes(location.pathname);
+  const hasOwnActionBar =
+  ['/create-invoice', '/preview-send', '/business', '/export-report'].includes(location.pathname) ||
+  location.pathname.startsWith('/item/');
   const showBottomNav = showShell && !hasOwnActionBar;
 
   // Invoices created this month (for the sidebar plan card and the More page)
@@ -172,6 +194,20 @@ function App() {
 
     installApp();
   };
+  const saveCatalogItem = (item: CatalogItem) => {
+  setCatalog((prev) =>
+    prev.some((i) => i.id === item.id)
+      ? prev.map((i) => (i.id === item.id ? item : i))
+      : [item, ...prev]
+  );
+  goBack('/more');
+};
+
+// Go back to wherever the user came from
+const goBack = (fallback: string) => {
+  if (window.history.length > 1) navigate(-1);
+  else navigate(fallback);
+};
 
   // ================= UI =================
   return (
@@ -258,6 +294,7 @@ function App() {
                     navigate('/invoices');
                   }}
                   onExportReport={() => navigate('/export-report')}
+                  onViewReports={() => navigate('/reports')}
                 />
               ) : (
                 <Navigate to="/" />
@@ -355,6 +392,7 @@ function App() {
                   onFeedback={() => navigate('/feedback')}
                   onLogout={handleLogout}
                   onBusiness={() => navigate('/business')}
+                  onReports={() => navigate('/reports')}
                 />
               ) : (
                 <Navigate to="/" />
@@ -391,6 +429,36 @@ function App() {
               }
             />
 
+            <Route
+              path="/item/new"
+              element={
+                isLoggedIn ? (
+                  <ItemEditor
+                    items={catalog}
+                    onSave={saveCatalogItem}
+                    onCancel={() => goBack('/more')}
+                  />
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+
+            <Route
+              path="/item/:id"
+              element={
+                isLoggedIn ? (
+                  <EditItemRoute
+                    items={catalog}
+                    onSave={saveCatalogItem}
+                    onCancel={() => goBack('/more')}
+                  />
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+
           <Route
             path="/export-report"
             element={
@@ -399,13 +467,32 @@ function App() {
                 invoices={invoices}
                 customers={customers}
                 businessInfo={businessInfo}
-                onBack={() => navigate('/dashboard')}
+                onBack={() => (window.history.length > 1 ? navigate(-1) : navigate('/dashboard'))}
               />
             ) : (
             <Navigate to="/" />
             )
           }
         />
+
+          <Route
+            path="/reports"
+            element={
+              isLoggedIn ? (
+                <Reports
+                  invoices={invoices}
+                  businessInfo={businessInfo}
+                  onViewDetails={() => {
+                    setInvoiceStatusFilter('overdue');
+                    navigate('/invoices');
+                  }}
+                  onExport={() => navigate('/export-report')}
+                />
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
 
           <Route
             path="/upgrade"

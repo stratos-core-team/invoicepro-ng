@@ -70,3 +70,22 @@ export interface DashboardStats {
   paidCount: number;
   overdueCount: number;
 }
+
+export type CatalogItemType = 'service' | 'product';
+
+export interface CatalogItem {
+  id: string;
+  type: CatalogItemType;
+  name: string;
+  description: string;
+  unitPrice: number;
+  currency: string;
+  taxRate: number;          // percent, e.g. 7.5
+  sku: string;
+  unit: string;             // e.g. "Per project"
+  trackInventory: boolean;
+  stockQuantity?: number;   // only used when trackInventory is on
+  active: boolean;          // available when creating invoices
+  createdAt: string;
+  updatedAt: string;
+}
