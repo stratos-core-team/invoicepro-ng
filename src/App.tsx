@@ -23,6 +23,7 @@ import { More } from "@/sections/More";
 import { BusinessBranding } from "@/sections/BusinessBranding";
 import { ExportReport } from "@/sections/ExportReport";
 import { Reports } from "@/sections/Reports";
+import { Catalog } from "@/sections/Catalog";
 
 import { BottomNav } from "@/components/BottomNav";
 import type { NavView } from "@/components/BottomNav";
@@ -47,7 +48,7 @@ function EditItemRoute({
   const item = items.find((i) => i.id === id);
 
   // Unknown or deleted item: nothing to edit
-  if (!item) return <Navigate to="/more" replace />;
+  if (!item) return <Navigate to="/products" replace />;
 
   return <ItemEditor key={item.id} item={item} items={items} onSave={onSave} onCancel={onCancel} />;
 }
@@ -200,7 +201,7 @@ function App() {
       ? prev.map((i) => (i.id === item.id ? item : i))
       : [item, ...prev]
   );
-  goBack('/more');
+  goBack('/products');
 };
 
 // Go back to wherever the user came from
@@ -393,6 +394,23 @@ const goBack = (fallback: string) => {
                   onLogout={handleLogout}
                   onBusiness={() => navigate('/business')}
                   onReports={() => navigate('/reports')}
+                  onProducts={() => navigate('/products')}
+                  catalogCount={catalog.length}
+                />
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+
+          <Route
+            path="/products"
+            element={
+              isLoggedIn ? (
+                <Catalog
+                  items={catalog}
+                  onAdd={() => navigate('/item/new')}
+                  onOpen={(item) => navigate(`/item/${item.id}`)}
                 />
               ) : (
                 <Navigate to="/" />
@@ -436,7 +454,7 @@ const goBack = (fallback: string) => {
                   <ItemEditor
                     items={catalog}
                     onSave={saveCatalogItem}
-                    onCancel={() => goBack('/more')}
+                    onCancel={() => goBack('/products')}
                   />
                 ) : (
                   <Navigate to="/" />
@@ -451,7 +469,7 @@ const goBack = (fallback: string) => {
                   <EditItemRoute
                     items={catalog}
                     onSave={saveCatalogItem}
-                    onCancel={() => goBack('/more')}
+                    onCancel={() => goBack('/products')}
                   />
                 ) : (
                   <Navigate to="/" />

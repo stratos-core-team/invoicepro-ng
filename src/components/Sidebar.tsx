@@ -122,7 +122,12 @@ export function Sidebar({
           WORKSPACE
         </p>
 
-        <NavItem icon={Package} label="Products" title="Coming soon" />
+        <NavItem
+          icon={Package}
+          label="Products"
+          active={currentView === ('products' as View)}
+          onClick={() => onNavigate('products' as View)}
+        />
         <NavItem icon={Repeat} label="Recurring" title="Coming soon" />
         <NavItem icon={Settings} label="Settings" onClick={onSettings} />
       </nav>

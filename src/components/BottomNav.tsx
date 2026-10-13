@@ -21,7 +21,12 @@ const navItems: { view: NavView; label: string; icon: LucideIcon }[] = [
 ];
 
 // Pages that belong under the More tab
-const MORE_PAGES = ['more', 'settings', 'upgrade', 'contact', 'feedback', 'reports'];
+const MORE_PAGES = ['more', 'settings', 'upgrade', 'contact', 'feedback', 'reports', 'products', 'item'];
+
+const isActive = (view: NavView) =>
+  view === 'more'
+    ? MORE_PAGES.some((page) => currentView === page || currentView.startsWith(`${page}/`))
+    : currentView === view;
 
 export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
   const [visible, setVisible] = useState(true);
