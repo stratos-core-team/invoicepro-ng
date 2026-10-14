@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   Settings,
   Building2,
@@ -15,7 +16,7 @@ import {
   MessageCircle,
   ChevronRight,
   BarChart3,
-  Package
+  Package,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,21 +24,21 @@ import type { BusinessInfo } from '@/types';
 import { trackEvent, resetUser } from '@/utils/analytics';
 import { getBrand } from '@/sections/BusinessBranding';
 
-
 interface MoreProps {
   businessInfo: BusinessInfo;
   isPro?: boolean;
   invoicesUsed: number;
   invoiceLimit?: number;
+  catalogCount?: number;
   appVersion?: string;
   onSettings: () => void;
+  onBusiness: () => void;
+  onReports: () => void;
+  onProducts: () => void;
   onUpgrade: () => void;
   onHelp: () => void;
   onFeedback: () => void;
   onLogout: () => void;
-  onBusiness: () => void;
-  onReports: () => void;
-  onProducts: () => void;
 }
 
 interface RowProps {
@@ -84,7 +85,7 @@ function Row({ icon: Icon, label, value, soon, onClick }: RowProps) {
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+function Card({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-2 space-y-0.5">
       {children}
@@ -99,15 +100,16 @@ export function More({
   isPro = false,
   invoicesUsed,
   invoiceLimit = 30,
+  catalogCount,
   appVersion = '1.0.0',
   onSettings,
+  onBusiness,
+  onReports,
+  onProducts,
   onUpgrade,
   onHelp,
   onFeedback,
   onLogout,
-  onBusiness,
-  onReports,
-  onProducts
 }: MoreProps) {
   const initials =
     businessInfo.name
@@ -158,9 +160,20 @@ export function More({
         {/* Profile card */}
         <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 shrink-0 rounded-full bg-emerald-500 text-white text-xl font-bold flex items-center justify-center">
-              {initials}
-            </div>
+            {businessInfo.logo ? (
+              <img
+                src={businessInfo.logo}
+                alt=""
+                className="w-16 h-16 shrink-0 rounded-full object-contain border border-gray-100"
+              />
+            ) : (
+              <div
+                className="w-16 h-16 shrink-0 rounded-full text-white text-xl font-bold flex items-center justify-center"
+                style={{ backgroundColor: getBrand(businessInfo.brandColor).value }}
+              >
+                {initials}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <p className="text-lg font-bold text-gray-900 truncate">{businessInfo.name}</p>
               {businessInfo.email && (
@@ -198,10 +211,13 @@ export function More({
             <Row
               icon={Package}
               label="Products & services"
-              value={catalogCount !== undefined ? `${catalogCount} item${catalogCount === 1 ? '' : 's'}` : undefined}
+              value={
+                catalogCount !== undefined
+                  ? `${catalogCount} item${catalogCount === 1 ? '' : 's'}`
+                  : undefined
+              }
               onClick={open('products_services', 'Products & services', onProducts)}
             />
-            
             <Row
               icon={BarChart3}
               label="Reports"
@@ -215,10 +231,10 @@ export function More({
               onClick={open('business_profile', 'Business profile', onBusiness)}
             />
             <Row
-                icon={Palette}
-                label="Invoice branding"
-                value={getBrand(businessInfo.brandColor).name}
-                onClick={open('invoice_branding', 'Invoice branding', onBusiness)}
+              icon={Palette}
+              label="Invoice branding"
+              value={getBrand(businessInfo.brandColor).name}
+              onClick={open('invoice_branding', 'Invoice branding', onBusiness)}
             />
             <Row
               icon={Hash}

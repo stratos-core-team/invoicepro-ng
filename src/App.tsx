@@ -387,15 +387,15 @@ const goBack = (fallback: string) => {
                 <More
                   businessInfo={businessInfo}
                   invoicesUsed={invoicesThisMonth}
+                  catalogCount={catalog.length}
                   onSettings={() => navigate('/settings')}
+                  onBusiness={() => navigate('/business')}
+                  onReports={() => navigate('/reports')}
+                  onProducts={() => navigate('/products')}
                   onUpgrade={goToUpgrade}
                   onHelp={() => navigate('/contact')}
                   onFeedback={() => navigate('/feedback')}
                   onLogout={handleLogout}
-                  onBusiness={() => navigate('/business')}
-                  onReports={() => navigate('/reports')}
-                  onProducts={() => navigate('/products')}
-                  catalogCount={catalog.length}
                 />
               ) : (
                 <Navigate to="/" />
