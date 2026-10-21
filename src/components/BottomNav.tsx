@@ -23,11 +23,6 @@ const navItems: { view: NavView; label: string; icon: LucideIcon }[] = [
 // Pages that belong under the More tab
 const MORE_PAGES = ['more', 'settings', 'upgrade', 'contact', 'feedback', 'reports', 'products', 'item'];
 
-const isActive = (view: NavView) =>
-  view === 'more'
-    ? MORE_PAGES.some((page) => currentView === page || currentView.startsWith(`${page}/`))
-    : currentView === view;
-
 export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
   const [visible, setVisible] = useState(true);
   const lastScrollY = useRef(0);
@@ -57,7 +52,6 @@ export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
   return (
     <nav
       className={cn(
-        // Mobile/tablet only: desktop uses the sidebar
         'lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-50 transition-transform duration-300 ease-in-out',
         visible ? 'translate-y-0' : 'translate-y-full'
       )}
